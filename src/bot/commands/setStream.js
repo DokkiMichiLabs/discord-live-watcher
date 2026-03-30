@@ -1,0 +1,63 @@
+import {
+    SlashCommandBuilder,
+    PermissionFlagsBits
+} from "discord.js";
+import { upsertStreamConfig } from "../../repositories/streamWatchRepository.js";
+
+export const data = new SlashCommandBuilder()
+    .setName("set-stream")
+    .setDescription("Register or update a stream watch for a Discord user.")
+    .addUserOption(option =>
+        option
+            .setName("discord-user")
+            .setDescription("Discord user tied to this watch config.")
+            .setRequired(true)
+    )
+    .addChannelOption(option =>
+        option
+            .setName("channel")
+            .setDescription("Discord channel where live alerts should be posted.")
+            .setRequired(true)
+    )
+    .addStringOption(option =>
+        option
+            .setName("platform")
+            .setDescription("Streaming platform.")
+            .setRequired(true)
+            .addChoices(
+                { name: "Twitch", value: "twitch" },
+                { name: "TikTok", value: "tiktok" }
+            )
+    )
+    .addStringOption(option =>
+        option
+            .setName("platform-username")
+            .setDescription("Platform username/handle to watch.")
+            .setRequired(true)
+    )
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild);
+
+export async function execute(interaction) {
+    const discordUser = interaction.options.getUser("discord-user", true);
+    const channel = interaction.options.getChannel("channel", true);
+    const platform = interaction.options.getString("platform", true);
+    const platformUsername = interaction.options.getString("platform-username", true);
+
+    const config = await upsertStreamConfig({
+        guildId: interaction.guildId,
+        discordUserId: discordUser.id,
+        discordChannelId: channel.id,
+        platform,
+        platformUsername
+    });
+
+    await interaction.reply({
+        content:
+            `Saved stream watch:\n` +
+            `- Discord user: <@${config.discordUserId}>\n` +
+            `- Channel: <#${config.discordChannelId}>\n` +
+            `- Platform: **${config.platform}**\n` +
+            `- Username: **${config.platformUsername}**`,
+        ephemeral: true
+    });
+}

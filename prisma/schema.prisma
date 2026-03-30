@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StreamPlatform {
+  twitch
+  tiktok
+}
+
+model StreamWatchConfig {
+  id               String         @id @default(uuid())
+  guildId          String
+  discordUserId    String
+  discordChannelId String
+  platform         StreamPlatform
+  platformUsername String
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  state StreamWatchState?
+
+  @@unique([guildId, discordUserId, platform])
+  @@index([guildId])
+  @@index([platform, platformUsername])
+}
+
+model StreamWatchState {
+  id               String    @id @default(uuid())
+  configId         String    @unique
+  isLive           Boolean   @default(false)
+  lastStreamId     String?
+  lastTitle        String?
+  lastThumbnailUrl String?
+  lastStreamUrl    String?
+  lastCheckedAt    DateTime?
+  lastAnnouncedAt  DateTime?
+
+  config StreamWatchConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+}
