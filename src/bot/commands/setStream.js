@@ -41,7 +41,15 @@ export async function execute(interaction) {
     const discordUser = interaction.options.getUser("discord-user", true);
     const channel = interaction.options.getChannel("channel", true);
     const platform = interaction.options.getString("platform", true);
-    const platformUsername = interaction.options.getString("platform-username", true);
+    let platformUsername = interaction.options.getString("platform-username", true);
+
+    if (platform === "tiktok") {
+        platformUsername = platformUsername.replace(/^@/, "");
+    }
+
+    if (platform === "twitch") {
+        platformUsername = platformUsername.toLowerCase();
+    }
 
     const config = await upsertStreamConfig({
         guildId: interaction.guildId,
