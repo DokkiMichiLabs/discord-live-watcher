@@ -10,9 +10,9 @@ import { logger } from "../utils/logger.js";
 async function handleStateTransition(client, config, liveData) {
     await updateStreamState(config.id, {
         lastCheckedAt: new Date(),
-        lastTitle: liveData.title || null,
-        lastThumbnailUrl: liveData.thumbnailUrl || null,
-        lastStreamUrl: liveData.url || null
+        ...(liveData.title ? { lastTitle: liveData.title } : {}),
+        ...(liveData.thumbnailUrl ? { lastThumbnailUrl: liveData.thumbnailUrl } : {}),
+        ...(liveData.url ? { lastStreamUrl: liveData.url } : {})
     });
 
     if (!liveData.found) {
@@ -23,6 +23,18 @@ async function handleStateTransition(client, config, liveData) {
                 error: liveData.error || null
             },
             "Platform user not found"
+        );
+        return;
+    }
+
+    if (liveData.status === "unknown") {
+        logger.warn(
+            {
+                platform: config.platform,
+                username: config.platformUsername,
+                error: liveData.error || null
+            },
+            "Live status unknown, skipping state update"
         );
         return;
     }
@@ -121,7 +133,16 @@ async function processTikTokConfig(client, config) {
 }
 
 export function startWatcher(client, intervalMs) {
+    let isTickRunning = false;
+
     async function tick() {
+        if (isTickRunning) {
+            logger.warn("Skipping watcher tick because previous tick is still running");
+            return;
+        }
+
+        isTickRunning = true;
+
         try {
             const [twitchConfigs, tiktokConfigs] = await Promise.all([
                 getActiveStreamConfigsByPlatform("twitch"),
@@ -161,6 +182,8 @@ export function startWatcher(client, intervalMs) {
             }
         } catch (error) {
             logger.error({ error }, "Watcher tick failed");
+        } finally {
+            isTickRunning = false;
         }
     }
 
