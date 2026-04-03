@@ -6,7 +6,8 @@ import { WebcastPushConnection } from "tiktok-live-connector";
  * Notes:
  * - This uses an unofficial library.
  * - We connect briefly, inspect the returned state/room info, then disconnect.
- * - We should treat failures as "unknown" rather than crashing the watcher.
+ * - We treat unexpected failures as "unknown" instead of "offline"
+ *   to avoid missing live notifications.
  */
 export async function getTikTokLiveStatus(username) {
     const normalizedUsername = username.replace(/^@/, "").trim();
@@ -15,6 +16,7 @@ export async function getTikTokLiveStatus(username) {
         return {
             found: false,
             isLive: false,
+            status: "invalid",
             error: "Missing TikTok username"
         };
     }
@@ -28,8 +30,7 @@ export async function getTikTokLiveStatus(username) {
     try {
         const state = await connection.connect();
 
-        // If connect succeeds, the room is live.
-        // The returned object shape can vary, so we keep extraction defensive.
+        // Extract room info defensively
         const roomId =
             state?.roomId ||
             state?.room_id ||
@@ -52,6 +53,7 @@ export async function getTikTokLiveStatus(username) {
         return {
             found: true,
             isLive: true,
+            status: "live",
             streamId: roomId ? String(roomId) : null,
             title,
             displayName: normalizedUsername,
@@ -62,7 +64,7 @@ export async function getTikTokLiveStatus(username) {
     } catch (error) {
         const message = String(error?.message || "");
 
-        // Treat common offline/not-live cases as "found but offline"
+        // ✅ Known OFFLINE cases
         if (
             /user offline/i.test(message) ||
             /not live/i.test(message) ||
@@ -72,13 +74,14 @@ export async function getTikTokLiveStatus(username) {
             return {
                 found: true,
                 isLive: false,
+                status: "offline",
                 displayName: normalizedUsername,
                 username: normalizedUsername,
                 url: tiktokUrl
             };
         }
 
-        // Some failures may indicate the user cannot be resolved at all.
+        // ❌ User not found
         if (
             /user.*not.*found/i.test(message) ||
             /uniqueid/i.test(message)
@@ -86,13 +89,16 @@ export async function getTikTokLiveStatus(username) {
             return {
                 found: false,
                 isLive: false,
+                status: "not_found",
                 error: message
             };
         }
 
+        // ⚠️ Unknown / transient failure (IMPORTANT FIX)
         return {
             found: true,
-            isLive: false,
+            isLive: null,
+            status: "unknown",
             error: message,
             displayName: normalizedUsername,
             username: normalizedUsername,
@@ -100,9 +106,9 @@ export async function getTikTokLiveStatus(username) {
         };
     } finally {
         try {
-            connection.disconnect();
+            await connection.disconnect();
         } catch {
-            // ignore disconnect cleanup errors
+            // ignore cleanup errors
         }
     }
 }
