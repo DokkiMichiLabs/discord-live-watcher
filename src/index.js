@@ -2,7 +2,7 @@ import { Client, GatewayIntentBits } from "discord.js";
 import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { handleInteraction } from "./bot/interactionHandler.js";
-import { startWatcher } from "./services/watcherService.js";
+import { startTikTokWatcher, startTwitchWatcher } from "./services/watcherService.js";
 import { prisma } from "./db/prisma.js";
 
 const client = new Client({
@@ -20,7 +20,8 @@ client.once("ready", async () => {
         process.exit(1);
     }
 
-    startWatcher(client, env.watchIntervalMs);
+    startTwitchWatcher(client, env.twitchWatchIntervalMs);
+    startTikTokWatcher(client);
 });
 
 client.on("interactionCreate", async interaction => {
