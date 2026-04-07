@@ -4,7 +4,10 @@ import {
 } from "../repositories/streamWatchRepository.js";
 import { getTwitchLiveStatus } from "../platforms/twitch/twitchAdapter.js";
 import { getTikTokLiveStatus } from "../platforms/tiktok/tiktokAdapter.js";
-import { sendLiveNotification } from "./notificationService.js";
+import {
+    sendLiveNotification,
+    updateLiveNotificationToOffline
+} from "./notificationService.js";
 import { logger } from "../utils/logger.js";
 import { env } from "../config/env.js";
 
@@ -91,7 +94,7 @@ async function handleStateTransition(client, config, liveData) {
             return;
         }
 
-        await sendLiveNotification(client, config, liveData);
+        const notification = await sendLiveNotification(client, config, liveData);
 
         await updateStreamState(config.id, {
             isLive: true,
@@ -99,6 +102,8 @@ async function handleStateTransition(client, config, liveData) {
             lastTitle: liveData.title || null,
             lastThumbnailUrl: liveData.thumbnailUrl || null,
             lastStreamUrl: liveData.url || null,
+            lastNotificationMessageId: notification.messageId,
+            lastNotificationChannelId: notification.channelId,
             lastAnnouncedAt: new Date(),
             lastCheckedAt: new Date()
         });
@@ -107,7 +112,8 @@ async function handleStateTransition(client, config, liveData) {
             {
                 platform: config.platform,
                 username: config.platformUsername,
-                streamId: liveData.streamId || null
+                streamId: liveData.streamId || null,
+                notificationMessageId: notification.messageId
             },
             "Sent live notification"
         );
@@ -116,6 +122,13 @@ async function handleStateTransition(client, config, liveData) {
     }
 
     if (wasLive && !isNowLive) {
+        const didUpdateMessage = await updateLiveNotificationToOffline(
+            client,
+            config,
+            config.state,
+            liveData
+        );
+
         await updateStreamState(config.id, {
             isLive: false,
             lastCheckedAt: new Date()
@@ -124,7 +137,8 @@ async function handleStateTransition(client, config, liveData) {
         logger.info(
             {
                 platform: config.platform,
-                username: config.platformUsername
+                username: config.platformUsername,
+                updatedNotification: didUpdateMessage
             },
             "Streamer went offline"
         );

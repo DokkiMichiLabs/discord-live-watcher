@@ -38,6 +38,8 @@ model StreamWatchState {
   lastTitle        String?
   lastThumbnailUrl String?
   lastStreamUrl    String?
+  lastNotificationMessageId String?
+  lastNotificationChannelId String?
   lastCheckedAt    DateTime?
   lastAnnouncedAt  DateTime?
 
