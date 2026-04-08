@@ -2,7 +2,13 @@ import {
     SlashCommandBuilder,
     PermissionFlagsBits
 } from "discord.js";
-import { removeStreamConfig } from "../../repositories/streamWatchRepository.js";
+import {
+    getStreamConfig,
+    removeStreamConfig
+} from "../../repositories/streamWatchRepository.js";
+import { removeTikTokAlertSubscription } from "../../platforms/tiktok/eulerAlertsService.js";
+import { env } from "../../config/env.js";
+import { logger } from "../../utils/logger.js";
 
 export const data = new SlashCommandBuilder()
     .setName("remove-stream")
@@ -29,21 +35,46 @@ export async function execute(interaction) {
     const discordUser = interaction.options.getUser("discord-user", true);
     const platform = interaction.options.getString("platform", true);
 
-    try {
-        await removeStreamConfig({
-            guildId: interaction.guildId,
-            discordUserId: discordUser.id,
-            platform
-        });
+    const existingConfig = await getStreamConfig({
+        guildId: interaction.guildId,
+        discordUserId: discordUser.id,
+        platform
+    });
 
-        await interaction.reply({
-            content: `Removed ${platform} stream watch for <@${discordUser.id}>.`,
-            ephemeral: true
-        });
-    } catch {
+    if (!existingConfig) {
         await interaction.reply({
             content: `No ${platform} stream watch was found for <@${discordUser.id}>.`,
             ephemeral: true
         });
+        return;
     }
+
+    let cleanupWarning = "";
+
+    if (platform === "tiktok" && env.eulerAlertsEnabled) {
+        try {
+            await removeTikTokAlertSubscription(existingConfig);
+        } catch (error) {
+            logger.error(
+                {
+                    error,
+                    configId: existingConfig.id,
+                    platformUsername: existingConfig.platformUsername
+                },
+                "Failed to remove TikTok Euler alert subscription"
+            );
+            cleanupWarning = "\nWarning: Euler alert cleanup needs manual review.";
+        }
+    }
+
+    await removeStreamConfig({
+        guildId: interaction.guildId,
+        discordUserId: discordUser.id,
+        platform
+    });
+
+    await interaction.reply({
+        content: `Removed ${platform} stream watch for <@${discordUser.id}>.${cleanupWarning}`,
+        ephemeral: true
+    });
 }

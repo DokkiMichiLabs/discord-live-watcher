@@ -22,7 +22,8 @@ export async function execute(interaction) {
             `platform: **${config.platform}**`,
             `username: **${config.platformUsername}**`,
             `channel: <#${config.discordChannelId}>`,
-            `live: **${config.state?.isLive ? "yes" : "no"}**`
+            `live: **${config.state?.isLive ? "yes" : "no"}**`,
+            ...(config.platform === "tiktok" ? [`alerts: **${config.eulerAlertId ? "webhook" : "polling"}**`] : [])
         ].join(" | ");
     });
 
