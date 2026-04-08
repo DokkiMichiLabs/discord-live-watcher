@@ -157,7 +157,7 @@ function inferIsLive(payload) {
     return null;
 }
 
-function buildLiveDataFromWebhook(config, payload) {
+function originalBuildLiveDataFromWebhook(config, payload) {
     const roomId = pickFirstString(
         payload?.room_id,
         payload?.roomId,
@@ -216,6 +216,34 @@ function buildLiveDataFromWebhook(config, payload) {
     };
 }
 
+function buildLiveDataFromWebhook(config, payload) {
+    const isDashboardPayload =
+        payload?.username || payload?.title || payload?.cover_url;
+
+    if (isDashboardPayload) {
+        const username = String(payload.username || config.platformUsername)
+            .replace(/^@/, "")
+            .trim()
+            .toLowerCase();
+
+        return {
+            found: true,
+            isLive: true,
+            status: "live",
+            streamId: null,
+            title: payload.title || null,
+            displayName: payload.username || config.platformUsername,
+            username,
+            thumbnailUrl: payload.cover_url || null,
+            avatarUrl: payload.avatar_url || null,
+            url: `https://www.tiktok.com/@${username}`,
+            rawPayload: payload
+        };
+    }
+
+    return originalBuildLiveDataFromWebhook(config, payload);
+}
+
 async function resolveConfigsForPayload(payload) {
     const alertId = extractAlertId(payload);
     const username = normalizeUsername(payload);
@@ -239,7 +267,22 @@ async function resolveConfigsForPayload(payload) {
 }
 
 export async function processEulerLiveAlertWebhook(client, payload) {
-    const configs = await resolveConfigsForPayload(payload);
+    let configs = await resolveConfigsForPayload(payload);
+
+    // 🔥 Fallback for Euler Dashboard payload
+    if (!configs.length) {
+        const dashboardUsername = pickFirstString(
+            payload?.username,
+            payload?.user,
+            payload?.nickname
+        );
+
+        if (dashboardUsername) {
+            configs = await findActiveTikTokConfigsByUsername(
+                dashboardUsername.replace(/^@/, "").trim().toLowerCase()
+            );
+        }
+    }
 
     if (!configs.length) {
         logger.warn({ payload }, "Received Euler webhook but no matching TikTok config was found");
