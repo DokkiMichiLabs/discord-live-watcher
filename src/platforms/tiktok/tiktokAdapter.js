@@ -69,7 +69,8 @@ export async function getTikTokLiveStatus(username) {
             /user offline/i.test(message) ||
             /not live/i.test(message) ||
             /live ended/i.test(message) ||
-            /room.*not.*found/i.test(message)
+            /room.*not.*found/i.test(message) ||
+            /the requested user isn't online/i.test(message)
         ) {
             return {
                 found: true,

@@ -3,6 +3,7 @@ import { env } from "./config/env.js";
 import { logger } from "./utils/logger.js";
 import { handleInteraction } from "./bot/interactionHandler.js";
 import { startTikTokWatcher, startTwitchWatcher } from "./services/watcherService.js";
+import { startWebhookServer } from "./services/webhookServer.js";
 import { prisma } from "./db/prisma.js";
 
 const client = new Client({
@@ -20,6 +21,7 @@ client.once("ready", async () => {
         process.exit(1);
     }
 
+    startWebhookServer(client);
     startTwitchWatcher(client, env.twitchWatchIntervalMs);
     startTikTokWatcher(client);
 });

@@ -20,6 +20,8 @@ model StreamWatchConfig {
   platform         StreamPlatform
   platformUsername String
   isActive         Boolean        @default(true)
+  eulerAlertId     String?
+  eulerTargetId    String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
@@ -28,20 +30,21 @@ model StreamWatchConfig {
   @@unique([guildId, discordUserId, platform])
   @@index([guildId])
   @@index([platform, platformUsername])
+  @@index([platform, eulerAlertId])
 }
 
 model StreamWatchState {
-  id               String    @id @default(uuid())
-  configId         String    @unique
-  isLive           Boolean   @default(false)
-  lastStreamId     String?
-  lastTitle        String?
-  lastThumbnailUrl String?
-  lastStreamUrl    String?
+  id                        String    @id @default(uuid())
+  configId                  String    @unique
+  isLive                    Boolean   @default(false)
+  lastStreamId              String?
+  lastTitle                 String?
+  lastThumbnailUrl          String?
+  lastStreamUrl             String?
   lastNotificationMessageId String?
   lastNotificationChannelId String?
-  lastCheckedAt    DateTime?
-  lastAnnouncedAt  DateTime?
+  lastCheckedAt             DateTime?
+  lastAnnouncedAt           DateTime?
 
   config StreamWatchConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
 }

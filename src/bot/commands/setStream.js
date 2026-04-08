@@ -3,6 +3,9 @@ import {
     PermissionFlagsBits
 } from "discord.js";
 import { upsertStreamConfig } from "../../repositories/streamWatchRepository.js";
+import { ensureTikTokAlertSubscription } from "../../platforms/tiktok/eulerAlertsService.js";
+import { env } from "../../config/env.js";
+import { logger } from "../../utils/logger.js";
 
 export const data = new SlashCommandBuilder()
     .setName("set-stream")
@@ -44,14 +47,14 @@ export async function execute(interaction) {
     let platformUsername = interaction.options.getString("platform-username", true);
 
     if (platform === "tiktok") {
-        platformUsername = platformUsername.replace(/^@/, "");
+        platformUsername = platformUsername.replace(/^@/, "").trim().toLowerCase();
     }
 
     if (platform === "twitch") {
-        platformUsername = platformUsername.toLowerCase();
+        platformUsername = platformUsername.trim().toLowerCase();
     }
 
-    const config = await upsertStreamConfig({
+    let config = await upsertStreamConfig({
         guildId: interaction.guildId,
         discordUserId: discordUser.id,
         discordChannelId: channel.id,
@@ -59,13 +62,38 @@ export async function execute(interaction) {
         platformUsername
     });
 
+    let eulerStatusLine = "";
+
+    if (platform === "tiktok") {
+        if (env.eulerAlertsEnabled) {
+            try {
+                const syncResult = await ensureTikTokAlertSubscription(config);
+                config = syncResult.config || config;
+                eulerStatusLine = `\n- Euler alerts: **synced**`;
+            } catch (error) {
+                logger.error(
+                    {
+                        error,
+                        configId: config.id,
+                        platformUsername: config.platformUsername
+                    },
+                    "Failed to sync TikTok Euler alert subscription"
+                );
+                eulerStatusLine = `\n- Euler alerts: **not synced**`;
+            }
+        } else {
+            eulerStatusLine = `\n- Euler alerts: **disabled**`;
+        }
+    }
+
     await interaction.reply({
         content:
             `Saved stream watch:\n` +
             `- Discord user: <@${config.discordUserId}>\n` +
             `- Channel: <#${config.discordChannelId}>\n` +
             `- Platform: **${config.platform}**\n` +
-            `- Username: **${config.platformUsername}**`,
+            `- Username: **${config.platformUsername}**` +
+            eulerStatusLine,
         ephemeral: true
     });
 }

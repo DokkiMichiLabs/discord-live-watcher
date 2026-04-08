@@ -26,6 +26,16 @@ function parseNumberEnv(name, fallback) {
     return parsedValue;
 }
 
+function parseBooleanEnv(name, fallback = false) {
+    const rawValue = process.env[name];
+
+    if (rawValue === undefined || rawValue === "") {
+        return fallback;
+    }
+
+    return /^(1|true|yes|on)$/i.test(rawValue);
+}
+
 const legacyWatchIntervalMs = parseNumberEnv("WATCH_INTERVAL_MS", 60000);
 
 export const env = {
@@ -44,5 +54,13 @@ export const env = {
     tiktokRateLimitBackoffMs: parseNumberEnv("TIKTOK_RATE_LIMIT_BACKOFF_MS", 30 * 60 * 1000),
     tiktokPerStreamerDelayMs: parseNumberEnv("TIKTOK_PER_STREAMER_DELAY_MS", 1500),
     tiktokOverlapRetryMs: parseNumberEnv("TIKTOK_OVERLAP_RETRY_MS", 60 * 1000),
-    tiktokFailureRetryMs: parseNumberEnv("TIKTOK_FAILURE_RETRY_MS", 5 * 60 * 1000)
+    tiktokFailureRetryMs: parseNumberEnv("TIKTOK_FAILURE_RETRY_MS", 5 * 60 * 1000),
+    eulerAlertsEnabled: parseBooleanEnv("EULER_ALERTS_ENABLED", false),
+    eulerApiKey: process.env.EULER_API_KEY || "",
+    eulerAccountId: process.env.EULER_ACCOUNT_ID || "",
+    eulerWebhookSecret: process.env.EULER_WEBHOOK_SECRET || "",
+    publicBaseUrl: process.env.PUBLIC_BASE_URL || "",
+    webhookPort: parseNumberEnv("WEBHOOK_PORT", parseNumberEnv("PORT", 3000)),
+    eulerWebhookPath: process.env.EULER_WEBHOOK_PATH || "/webhooks/euler/live-alerts",
+    tiktokUnknownLiveGraceMs: parseNumberEnv("TIKTOK_UNKNOWN_LIVE_GRACE_MS", 30 * 60 * 1000)
 };

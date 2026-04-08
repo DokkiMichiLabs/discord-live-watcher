@@ -1,15 +1,11 @@
 import {
-    getActiveStreamConfigsByPlatform,
-    updateStreamState
+    getActiveStreamConfigsByPlatform
 } from "../repositories/streamWatchRepository.js";
 import { getTwitchLiveStatus } from "../platforms/twitch/twitchAdapter.js";
 import { getTikTokLiveStatus } from "../platforms/tiktok/tiktokAdapter.js";
-import {
-    sendLiveNotification,
-    updateLiveNotificationToOffline
-} from "./notificationService.js";
 import { logger } from "../utils/logger.js";
 import { env } from "../config/env.js";
+import { handleStreamStateTransition } from "./streamStateService.js";
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -33,139 +29,14 @@ function getTikTokIntervalMs(streamerCount) {
     return clampedMinutes * 60 * 1000;
 }
 
-async function handleStateTransition(client, config, liveData) {
-    await updateStreamState(config.id, {
-        lastCheckedAt: new Date(),
-        ...(liveData.title ? { lastTitle: liveData.title } : {}),
-        ...(liveData.thumbnailUrl ? { lastThumbnailUrl: liveData.thumbnailUrl } : {}),
-        ...(liveData.url ? { lastStreamUrl: liveData.url } : {})
-    });
-
-    if (!liveData.found) {
-        logger.warn(
-            {
-                platform: config.platform,
-                username: config.platformUsername,
-                error: liveData.error || null
-            },
-            "Platform user not found"
-        );
-        return;
-    }
-
-    if (liveData.status === "unknown") {
-        logger.warn(
-            {
-                platform: config.platform,
-                username: config.platformUsername,
-                error: liveData.error || null
-            },
-            "Live status unknown, skipping state update"
-        );
-        return;
-    }
-
-    const wasLive = Boolean(config.state?.isLive);
-    const isNowLive = Boolean(liveData.isLive);
-
-    if (!wasLive && isNowLive) {
-        if (
-            config.state?.lastStreamId &&
-            liveData.streamId &&
-            config.state.lastStreamId === liveData.streamId
-        ) {
-            await updateStreamState(config.id, {
-                isLive: true,
-                lastCheckedAt: new Date(),
-                lastTitle: liveData.title || null,
-                lastThumbnailUrl: liveData.thumbnailUrl || null,
-                lastStreamUrl: liveData.url || null
-            });
-
-            logger.info(
-                {
-                    platform: config.platform,
-                    username: config.platformUsername,
-                    streamId: liveData.streamId
-                },
-                "Skipped duplicate live notification"
-            );
-
-            return;
-        }
-
-        const notification = await sendLiveNotification(client, config, liveData);
-
-        await updateStreamState(config.id, {
-            isLive: true,
-            lastStreamId: liveData.streamId || null,
-            lastTitle: liveData.title || null,
-            lastThumbnailUrl: liveData.thumbnailUrl || null,
-            lastStreamUrl: liveData.url || null,
-            lastNotificationMessageId: notification.messageId,
-            lastNotificationChannelId: notification.channelId,
-            lastAnnouncedAt: new Date(),
-            lastCheckedAt: new Date()
-        });
-
-        logger.info(
-            {
-                platform: config.platform,
-                username: config.platformUsername,
-                streamId: liveData.streamId || null,
-                notificationMessageId: notification.messageId
-            },
-            "Sent live notification"
-        );
-
-        return;
-    }
-
-    if (wasLive && !isNowLive) {
-        const didUpdateMessage = await updateLiveNotificationToOffline(
-            client,
-            config,
-            config.state,
-            liveData
-        );
-
-        await updateStreamState(config.id, {
-            isLive: false,
-            lastCheckedAt: new Date()
-        });
-
-        logger.info(
-            {
-                platform: config.platform,
-                username: config.platformUsername,
-                updatedNotification: didUpdateMessage
-            },
-            "Streamer went offline"
-        );
-
-        return;
-    }
-
-    if (isNowLive) {
-        await updateStreamState(config.id, {
-            isLive: true,
-            lastStreamId: liveData.streamId || null,
-            lastTitle: liveData.title || null,
-            lastThumbnailUrl: liveData.thumbnailUrl || null,
-            lastStreamUrl: liveData.url || null,
-            lastCheckedAt: new Date()
-        });
-    }
-}
-
 async function processTwitchConfig(client, config) {
     const liveData = await getTwitchLiveStatus(config.platformUsername);
-    await handleStateTransition(client, config, liveData);
+    await handleStreamStateTransition(client, config, liveData);
 }
 
 async function processTikTokConfig(client, config) {
     const liveData = await getTikTokLiveStatus(config.platformUsername);
-    await handleStateTransition(client, config, liveData);
+    await handleStreamStateTransition(client, config, liveData);
     return liveData;
 }
 
