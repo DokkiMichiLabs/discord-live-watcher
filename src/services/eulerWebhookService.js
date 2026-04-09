@@ -31,6 +31,14 @@ export function isValidEulerWebhookSignature(payload, receivedSignature) {
     }
 }
 
+export function getExpectedEulerWebhookSignature(payload) {
+    if (!env.eulerWebhookSecret) {
+        return null;
+    }
+
+    return generateSignature(env.eulerWebhookSecret, payload);
+}
+
 function pickFirst(...values) {
     for (const value of values) {
         if (value !== undefined && value !== null && value !== "") {
