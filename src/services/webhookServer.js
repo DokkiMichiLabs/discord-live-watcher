@@ -3,7 +3,8 @@ import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
 import {
     isValidEulerWebhookSignature,
-    processEulerLiveAlertWebhook
+    processEulerLiveAlertWebhook,
+    getExpectedEulerWebhookSignature
 } from "./eulerWebhookService.js";
 
 function readRawBody(req) {
@@ -49,6 +50,31 @@ export function startWebhookServer(client) {
 
             const rawBody = await readRawBody(req);
             const signature = req.headers["x-webhook-signature"];
+            const expectedSignature = getExpectedEulerWebhookSignature(rawBody);
+
+            if (typeof signature === "string") {
+                logger.info(
+                    {
+                        receivedSignaturePrefix: signature.slice(0, 12),
+                        expectedSignaturePrefix: expectedSignature?.slice(0, 12) ?? null,
+                        signatureLength: signature.length,
+                        rawBodyLength: rawBody.length
+                    },
+                    "Euler webhook signature debug"
+                );
+            }
+
+            if (typeof signature === "string") {
+                logger.info(
+                    {
+                        path: url.pathname,
+                        signatureLength: signature.length,
+                        rawBodyLength: rawBody.length,
+                        rawBodyPreview: rawBody.slice(0, 300)
+                    },
+                    "Received Euler webhook before signature validation"
+                );
+            }
 
             if (typeof signature !== "string" || !isValidEulerWebhookSignature(rawBody, signature)) {
                 logger.warn(
