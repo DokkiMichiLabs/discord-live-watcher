@@ -103,7 +103,7 @@ export async function sendLiveNotification(client, config, liveData) {
     });
 
     const message = await channel.send({
-        content: `<@${config.discordUserId}>`,
+        content: `<@&1466589257933127703>`,
         embeds: [embed]
     });
 
