@@ -1,5 +1,6 @@
 node_modules
 .env
+.env.test
 .prisma
 generated
 dist

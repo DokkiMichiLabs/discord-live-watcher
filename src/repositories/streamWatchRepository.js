@@ -220,3 +220,7 @@ export async function updateStreamState(configId, data) {
         data
     });
 }
+
+export async function getStreamConfigById(id) {
+    return prisma.streamWatchConfig.findUnique({ where: { id }, include: { state: true } });
+}
