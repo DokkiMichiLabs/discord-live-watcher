@@ -30,8 +30,8 @@ function getTikTokIntervalMs(streamerCount) {
 }
 
 async function processTwitchConfig(client, config) {
-    const liveData = await getTwitchLiveStatus(config.platformUsername);
-    await handleStreamStateTransition(client, config, liveData);
+    // Fetch inside the per-config lifecycle lock so concurrent checks cannot reorder observations.
+    await handleStreamStateTransition(client, config, current => getTwitchLiveStatus(current.platformUsername));
 }
 
 async function processTikTokConfig(client, config) {

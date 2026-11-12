@@ -5,6 +5,7 @@ import { handleInteraction } from "./bot/interactionHandler.js";
 import { startTikTokWatcher, startTwitchWatcher } from "./services/watcherService.js";
 import { startWebhookServer } from "./services/webhookServer.js";
 import { prisma } from "./db/prisma.js";
+import { startConfiguredMonitoring } from "./services/monitoringStartup.js";
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -21,9 +22,7 @@ client.once("ready", async () => {
         process.exit(1);
     }
 
-    startWebhookServer(client);
-    startTwitchWatcher(client, env.twitchWatchIntervalMs);
-    startTikTokWatcher(client);
+    startConfiguredMonitoring(client, env, { startWebhookServer, startTwitchWatcher, startTikTokWatcher });
 });
 
 client.on("interactionCreate", async interaction => {

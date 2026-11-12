@@ -1,16 +1,33 @@
-import { updateStreamState } from "../repositories/streamWatchRepository.js";
+import { updateStreamState, getStreamConfigById } from "../repositories/streamWatchRepository.js";
 import {
     sendLiveNotification,
-    updateLiveNotificationToOffline
+    updateLiveNotificationToOffline,
+    refreshTwitchNotificationImage
 } from "./notificationService.js";
 import { logger } from "../utils/logger.js";
 import { env } from "../config/env.js";
+import { createTwitchStateHandler } from "./twitchStateService.js";
+import { fetchTwitchThumbnail } from "../platforms/twitch/twitchThumbnail.js";
+
+const handleTwitchState = createTwitchStateHandler({
+    getConfig: getStreamConfigById,
+    updateState: updateStreamState,
+    sendLive: sendLiveNotification,
+    refreshImage: refreshTwitchNotificationImage,
+    setOffline: updateLiveNotificationToOffline,
+    fetchImage: fetchTwitchThumbnail,
+    intervalMs: env.twitchThumbnailRefreshMs,
+    logger
+});
 
 function isTikTokOfflineErrorMessage(errorMessage) {
     return /the requested user isn't online/i.test(errorMessage || "");
 }
 
 export async function handleStreamStateTransition(client, config, liveData) {
+    if (config.platform === "twitch") {
+        return handleTwitchState(client, config, liveData);
+    }
     const now = new Date();
 
     await updateStreamState(config.id, {

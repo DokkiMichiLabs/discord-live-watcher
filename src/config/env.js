@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 
-dotenv.config();
+dotenv.config({ path: process.env.DOTENV_CONFIG_PATH || ".env" });
 
 function requireEnv(name) {
     const value = process.env[name];
@@ -36,17 +36,31 @@ function parseBooleanEnv(name, fallback = false) {
     return /^(1|true|yes|on)$/i.test(rawValue);
 }
 
+function parsePositiveInterval(name, fallback) {
+    const value = parseNumberEnv(name, fallback);
+    if (!Number.isSafeInteger(value) || value < 60000) {
+        throw new Error(`Environment variable ${name} must be an integer of at least 60000 milliseconds.`);
+    }
+    return value;
+}
+
 const legacyWatchIntervalMs = parseNumberEnv("WATCH_INTERVAL_MS", 60000);
 
 export const env = {
     discordToken: requireEnv("DISCORD_TOKEN"),
     discordClientId: requireEnv("DISCORD_CLIENT_ID"),
     discordGuildId: requireEnv("DISCORD_GUILD_ID"),
+    discordNotificationRoleId: process.env.DISCORD_NOTIFICATION_ROLE_ID === undefined
+        ? "1466589257933127703"
+        : process.env.DISCORD_NOTIFICATION_ROLE_ID.trim(),
     databaseUrl: requireEnv("DATABASE_URL"),
     twitchClientId: process.env.TWITCH_CLIENT_ID || "",
     twitchClientSecret: process.env.TWITCH_CLIENT_SECRET || "",
     watchIntervalMs: legacyWatchIntervalMs,
     twitchWatchIntervalMs: parseNumberEnv("TWITCH_WATCH_INTERVAL_MS", legacyWatchIntervalMs),
+    twitchThumbnailRefreshMs: parsePositiveInterval("TWITCH_THUMBNAIL_REFRESH_MS", 5 * 60 * 1000),
+    tiktokWatcherEnabled: parseBooleanEnv("TIKTOK_WATCHER_ENABLED", true),
+    webhookServerEnabled: parseBooleanEnv("WEBHOOK_SERVER_ENABLED", true),
     tiktokDailyBudget: parseNumberEnv("TIKTOK_DAILY_BUDGET", 700),
     tiktokMinIntervalMinutes: parseNumberEnv("TIKTOK_MIN_INTERVAL_MINUTES", 2),
     tiktokMaxIntervalMinutes: parseNumberEnv("TIKTOK_MAX_INTERVAL_MINUTES", 30),

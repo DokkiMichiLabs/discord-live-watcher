@@ -35,6 +35,7 @@ export async function getTwitchLiveStatus(username) {
         found: true,
         isLive: true,
         streamId: stream.id,
+        startedAt: stream.started_at || null,
         title: stream.title,
         displayName: user.display_name,
         username: user.login,

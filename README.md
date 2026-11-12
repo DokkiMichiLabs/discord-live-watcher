@@ -2,6 +2,23 @@
 
 Discord bot that watches Twitch and TikTok live status and posts notifications.
 
+For a temporary local test instance, follow [the isolated integration test runbook](docs/isolated-integration-testing.md) and use `.env.test.example`. The test launcher checks isolation before live startup; ordinary startup retains existing production defaults.
+
+## Twitch thumbnail reliability
+
+Twitch previews are validated and uploaded as Discord attachments. The existing live
+message refreshes at most once per `TWITCH_THUMBNAIL_REFRESH_MS` (default `300000`,
+minimum `60000`). Unchanged image bytes skip the Discord edit. Offline edits retain
+the last attachment belonging to that stream ID. Unavailable previews use the
+Discord banner, when available, or an embed without a stream image.
+
+Run local regression tests with `npm ci`, `npx prisma generate`, and `npm test`.
+The tests mock Twitch, Discord, and database interactions; one test uses a localhost
+HTTP server to check Axios limits. No real notification or live platform call is needed.
+
+See [the implementation report](docs/twitch-thumbnail-reliability.md) for lifecycle,
+validation, deployment, and remaining limitations. This change requires no migration.
+
 ## TikTok LIVE Alerts via Euler Stream
 
 This project now supports Euler Stream LIVE Alerts as the primary TikTok go-live trigger, while keeping polling as a fallback.
